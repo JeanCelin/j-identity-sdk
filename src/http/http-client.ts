@@ -3,6 +3,7 @@ export type HttpRequest = {
   path: string;
   headers?: Record<string, string>;
   body?: unknown;
+  credentials?: RequestCredentials;
 };
 
 export interface HttpClient {

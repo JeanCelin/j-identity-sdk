@@ -20,6 +20,10 @@ export class FetchHttpClient implements HttpClient {
       headers,
     };
 
+    if (request.credentials !== undefined) {
+      options.credentials = request.credentials;
+    }
+
     if (request.body !== undefined) {
       headers["Content-Type"] = "application/json";
       options.body = JSON.stringify(request.body);
