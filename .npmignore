@@ -1,0 +1,9 @@
+src/
+node_modules/
+.git/
+.github/
+*.test.ts
+*.test.js
+*.test.d.ts
+*.test.js.map
+*.test.d.ts.map
