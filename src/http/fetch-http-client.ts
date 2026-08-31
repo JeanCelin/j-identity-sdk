@@ -9,7 +9,7 @@ export class FetchHttpClient implements HttpClient {
   }
 
   async request<T>(request: HttpRequest): Promise<T> {
-    const url = `${this.apiUrl}${request.path}`;
+    const url = `${this.apiUrl.replace(/\/$/, "")}${request.path}`;
 
     const headers = {
       ...request.headers,

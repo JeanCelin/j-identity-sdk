@@ -8,3 +8,9 @@ export type AuthClientConfig = {
 export type AuthResult = {
   accessToken: string;
 };
+
+export type RegisterData = {
+  name: string;
+  email: string;
+  password: string;
+};

@@ -1,5 +1,5 @@
 import type { AuthAdapter } from "./adapters/auth-adapter.js";
-import type { AuthClientConfig, AuthResult } from "./types/auth.js";
+import type { AuthClientConfig, AuthResult, RegisterData } from "./types/auth.js";
 import type { HttpClient } from "./http/http-client.js";
 import type { User } from "./types/user.js";
 
@@ -22,6 +22,11 @@ export class AuthClient {
   getAccessToken(): string | null {
     return this.accessToken;
   }
+
+  async register(data: RegisterData): Promise<User> {
+    return this.adapter.register(data);
+  }
+
   async login(email: string, password: string): Promise<AuthResult> {
     const result = await this.adapter.login(email, password);
 
