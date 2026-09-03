@@ -1,7 +1,12 @@
 import type { AuthAdapter } from "./adapters/auth-adapter.js";
-import type { AuthClientConfig, AuthResult, RegisterData } from "./types/auth.js";
+import type {
+  AuthClientConfig,
+  AuthResult,
+  RegisterData,
+} from "./types/auth.js";
 import type { HttpClient } from "./http/http-client.js";
 import type { User } from "./types/user.js";
+import type { AuthSession } from "./types/auth-session.js";
 
 export class AuthClient {
   private readonly config: AuthClientConfig;
@@ -19,6 +24,7 @@ export class AuthClient {
     this.adapter = adapter;
     this.httpClient = httpClient;
   }
+
   getAccessToken(): string | null {
     return this.accessToken;
   }
@@ -27,7 +33,10 @@ export class AuthClient {
     return this.adapter.register(data);
   }
 
-  async login(email: string, password: string): Promise<AuthResult> {
+  async login(
+    email: string,
+    password: string,
+  ): Promise<AuthResult> {
     const result = await this.adapter.login(email, password);
 
     this.accessToken = result.accessToken;
@@ -55,6 +64,7 @@ export class AuthClient {
     if (!this.accessToken) {
       throw new Error("Não autenticado");
     }
+
     const user = await this.httpClient.request<User>({
       method: "GET",
       path: "/auth/me",
@@ -64,5 +74,25 @@ export class AuthClient {
     });
 
     return user;
+  }
+
+  async initialize(): Promise<AuthSession> {
+    try {
+      await this.refresh();
+
+      const user = await this.me();
+
+      return {
+        authenticated: true,
+        user,
+      };
+    } catch {
+      this.accessToken = null;
+
+      return {
+        authenticated: false,
+        user: null,
+      };
+    }
   }
 }

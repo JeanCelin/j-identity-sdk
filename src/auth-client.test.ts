@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { AuthClient } from "./auth-client.js";
+
 import type { AuthAdapter } from "./adapters/auth-adapter.js";
+
 import type { HttpClient, HttpRequest } from "./http/http-client.js";
 
 describe("AuthClient", () => {
@@ -12,6 +14,7 @@ describe("AuthClient", () => {
 
     const fakeAdapter: AuthAdapter = {
       login,
+      register: vi.fn(),
       refresh: async () => ({
         accessToken: "access-token-new",
       }),
@@ -44,6 +47,7 @@ describe("AuthClient", () => {
       login: async () => ({
         accessToken: "access-token",
       }),
+      register: vi.fn(),
       refresh: async () => ({
         accessToken: "access-token-new",
       }),
@@ -76,6 +80,7 @@ describe("AuthClient", () => {
       login: async () => ({
         accessToken: "access-token",
       }),
+      register: vi.fn(),
       refresh: async () => ({
         accessToken: "access-token-new",
       }),
@@ -111,6 +116,7 @@ describe("AuthClient", () => {
       login: async () => ({
         accessToken: "access-token",
       }),
+      register: vi.fn(),
       refresh: async () => ({
         accessToken: "access-token-new",
       }),
@@ -166,6 +172,7 @@ describe("AuthClient", () => {
       login: async () => ({
         accessToken: "access-token",
       }),
+      register: vi.fn(),
       refresh: async () => ({
         accessToken: "access-token-new",
       }),
@@ -192,6 +199,121 @@ describe("AuthClient", () => {
     );
 
     await expect(auth.me()).rejects.toThrow("Não autenticado");
+
     expect(request).not.toHaveBeenCalled();
+  });
+});
+
+describe("initialize", () => {
+  it("deve restaurar uma sessão existente", async () => {
+    const adapter: AuthAdapter = {
+      login: vi.fn(),
+      register: vi.fn(),
+      refresh: vi.fn().mockResolvedValue({
+        accessToken: "new-access-token",
+      }),
+      logout: vi.fn(),
+    };
+
+    const httpClient: HttpClient = {
+      request: vi.fn().mockResolvedValue({
+        id: "1",
+        name: "Jean",
+        email: "jean@email.com",
+        emailVerified: true,
+        isActive: true,
+        createdAt: "2026-01-01",
+        updatedAt: "2026-01-01",
+      }),
+    };
+
+    const auth = new AuthClient(
+      {
+        apiUrl: "http://localhost:3001",
+        platform: "web",
+      },
+      adapter,
+      httpClient,
+    );
+
+    const session = await auth.initialize();
+
+    expect(session.authenticated).toBe(true);
+
+    expect(session.user).toEqual({
+      id: "1",
+      name: "Jean",
+      email: "jean@email.com",
+      emailVerified: true,
+      isActive: true,
+      createdAt: "2026-01-01",
+      updatedAt: "2026-01-01",
+    });
+
+    expect(auth.getAccessToken()).toBe("new-access-token");
+  });
+
+  it("deve retornar não autenticado quando o refresh falhar", async () => {
+    const adapter: AuthAdapter = {
+      login: vi.fn(),
+      register: vi.fn(),
+      refresh: vi.fn().mockRejectedValue(
+        new Error("Sessão expirada"),
+      ),
+      logout: vi.fn(),
+    };
+
+    const httpClient: HttpClient = {
+      request: vi.fn(),
+    };
+
+    const auth = new AuthClient(
+      {
+        apiUrl: "http://localhost:3001",
+        platform: "web",
+      },
+      adapter,
+      httpClient,
+    );
+
+    const session = await auth.initialize();
+
+    expect(session.authenticated).toBe(false);
+    expect(session.user).toBeNull();
+    expect(auth.getAccessToken()).toBeNull();
+
+    expect(httpClient.request).not.toHaveBeenCalled();
+  });
+
+  it("deve retornar não autenticado quando o me falhar", async () => {
+    const adapter: AuthAdapter = {
+      login: vi.fn(),
+      register: vi.fn(),
+      refresh: vi.fn().mockResolvedValue({
+        accessToken: "new-access-token",
+      }),
+      logout: vi.fn(),
+    };
+
+    const httpClient: HttpClient = {
+      request: vi.fn().mockRejectedValue(
+        new Error("Token inválido"),
+      ),
+    };
+
+    const auth = new AuthClient(
+      {
+        apiUrl: "http://localhost:3001",
+        platform: "web",
+      },
+      adapter,
+      httpClient,
+    );
+
+    const session = await auth.initialize();
+
+    expect(session.authenticated).toBe(false);
+    expect(session.user).toBeNull();
+    expect(auth.getAccessToken()).toBeNull();
   });
 });
