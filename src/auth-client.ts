@@ -1,32 +1,16 @@
+
 import type { AuthAdapter } from "./adapters/auth-adapter.js";
 import type {
-  AuthClientConfig,
   AuthResult,
   RegisterData,
 } from "./types/auth.js";
-import type { HttpClient } from "./http/http-client.js";
 import type { User } from "./types/user.js";
-import type { AuthSession } from "./types/auth-session.js";
 
 export class AuthClient {
-  private readonly config: AuthClientConfig;
   private readonly adapter: AuthAdapter;
-  private readonly httpClient: HttpClient;
 
-  private accessToken: string | null = null;
-
-  constructor(
-    config: AuthClientConfig,
-    adapter: AuthAdapter,
-    httpClient: HttpClient,
-  ) {
-    this.config = config;
+  constructor(adapter: AuthAdapter) {
     this.adapter = adapter;
-    this.httpClient = httpClient;
-  }
-
-  getAccessToken(): string | null {
-    return this.accessToken;
   }
 
   async register(data: RegisterData): Promise<User> {
@@ -37,62 +21,19 @@ export class AuthClient {
     email: string,
     password: string,
   ): Promise<AuthResult> {
-    const result = await this.adapter.login(email, password);
-
-    this.accessToken = result.accessToken;
-
-    return result;
+    return this.adapter.login(email, password);
   }
 
-  async refresh(): Promise<AuthResult> {
-    const result = await this.adapter.refresh();
-
-    this.accessToken = result.accessToken;
-
-    return result;
+  async refresh(refreshToken: string): Promise<AuthResult> {
+    return this.adapter.refresh(refreshToken);
   }
 
-  async logout(): Promise<void> {
-    try {
-      await this.adapter.logout();
-    } finally {
-      this.accessToken = null;
-    }
+  async logout(refreshToken: string): Promise<void> {
+    return this.adapter.logout(refreshToken);
   }
 
-  async me(): Promise<User> {
-    if (!this.accessToken) {
-      throw new Error("Não autenticado");
-    }
-
-    const user = await this.httpClient.request<User>({
-      method: "GET",
-      path: "/auth/me",
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-      },
-    });
-
-    return user;
-  }
-
-  async initialize(): Promise<AuthSession> {
-    try {
-      await this.refresh();
-
-      const user = await this.me();
-
-      return {
-        authenticated: true,
-        user,
-      };
-    } catch {
-      this.accessToken = null;
-
-      return {
-        authenticated: false,
-        user: null,
-      };
-    }
+  async me(accessToken: string): Promise<User> {
+    return this.adapter.me(accessToken);
   }
 }
+

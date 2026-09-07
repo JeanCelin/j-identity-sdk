@@ -4,125 +4,8 @@ import { AuthClient } from "./auth-client.js";
 
 import type { AuthAdapter } from "./adapters/auth-adapter.js";
 
-import type { HttpClient, HttpRequest } from "./http/http-client.js";
-
 describe("AuthClient", () => {
-  it("deve armazenar o Access Token após o login", async () => {
-    const login = vi.fn(async () => ({
-      accessToken: "access-token-123",
-    }));
-
-    const fakeAdapter: AuthAdapter = {
-      login,
-      register: vi.fn(),
-      refresh: async () => ({
-        accessToken: "access-token-new",
-      }),
-      logout: async () => {},
-    };
-
-    const fakeHttpClient: HttpClient = {
-      request: async () => {
-        throw new Error("Não deveria ser chamado neste teste");
-      },
-    };
-
-    const auth = new AuthClient(
-      {
-        apiUrl: "https://example.com",
-        platform: "web",
-      },
-      fakeAdapter,
-      fakeHttpClient,
-    );
-
-    await auth.login("jean@example.com", "123456");
-
-    expect(login).toHaveBeenCalledWith("jean@example.com", "123456");
-    expect(auth.getAccessToken()).toBe("access-token-123");
-  });
-
-  it("deve atualizar o Access Token após o refresh", async () => {
-    const fakeAdapter: AuthAdapter = {
-      login: async () => ({
-        accessToken: "access-token",
-      }),
-      register: vi.fn(),
-      refresh: async () => ({
-        accessToken: "access-token-new",
-      }),
-      logout: async () => {},
-    };
-
-    const fakeHttpClient: HttpClient = {
-      request: async () => {
-        throw new Error("Não deveria ser chamado neste teste");
-      },
-    };
-
-    const auth = new AuthClient(
-      {
-        apiUrl: "https://example.com",
-        platform: "web",
-      },
-      fakeAdapter,
-      fakeHttpClient,
-    );
-
-    await auth.login("jean@example.com", "123456");
-    await auth.refresh();
-
-    expect(auth.getAccessToken()).toBe("access-token-new");
-  });
-
-  it("deve remover o Access Token após o logout", async () => {
-    const fakeAdapter: AuthAdapter = {
-      login: async () => ({
-        accessToken: "access-token",
-      }),
-      register: vi.fn(),
-      refresh: async () => ({
-        accessToken: "access-token-new",
-      }),
-      logout: async () => {},
-    };
-
-    const fakeHttpClient: HttpClient = {
-      request: async () => {
-        throw new Error("Não deveria ser chamado neste teste");
-      },
-    };
-
-    const auth = new AuthClient(
-      {
-        apiUrl: "https://example.com",
-        platform: "web",
-      },
-      fakeAdapter,
-      fakeHttpClient,
-    );
-
-    await auth.login("jean@example.com", "123456");
-
-    expect(auth.getAccessToken()).toBe("access-token");
-
-    await auth.logout();
-
-    expect(auth.getAccessToken()).toBeNull();
-  });
-
-  it("deve buscar o usuário autenticado", async () => {
-    const fakeAdapter: AuthAdapter = {
-      login: async () => ({
-        accessToken: "access-token",
-      }),
-      register: vi.fn(),
-      refresh: async () => ({
-        accessToken: "access-token-new",
-      }),
-      logout: async () => {},
-    };
-
+  it("deve delegar o register para o adapter", async () => {
     const user = {
       id: "user-123",
       name: "Jean",
@@ -133,187 +16,132 @@ describe("AuthClient", () => {
       updatedAt: "2026-08-20T00:00:00.000Z",
     };
 
-    const request = vi.fn(
-      async <T>(_request: HttpRequest): Promise<T> => {
-        return user as T;
-      },
-    );
+    const register = vi.fn().mockResolvedValue(user);
 
-    const fakeHttpClient: HttpClient = {
-      request: request as unknown as HttpClient["request"],
+    const adapter: AuthAdapter = {
+      register,
+      login: vi.fn(),
+      refresh: vi.fn(),
+      logout: vi.fn(),
+      me: vi.fn(),
     };
 
-    const auth = new AuthClient(
-      {
-        apiUrl: "https://example.com",
-        platform: "web",
-      },
-      fakeAdapter,
-      fakeHttpClient,
-    );
+    const auth = new AuthClient(adapter);
 
-    await auth.login("jean@example.com", "123456");
+    const result = await auth.register({
+      name: "Jean",
+      email: "jean@example.com",
+      password: "12345678",
+    });
 
-    const result = await auth.me();
-
-    expect(request).toHaveBeenCalledWith({
-      method: "GET",
-      path: "/auth/me",
-      headers: {
-        Authorization: "Bearer access-token",
-      },
+    expect(register).toHaveBeenCalledWith({
+      name: "Jean",
+      email: "jean@example.com",
+      password: "12345678",
     });
 
     expect(result).toEqual(user);
   });
 
-  it("deve rejeitar me quando não estiver autenticado", async () => {
-    const fakeAdapter: AuthAdapter = {
-      login: async () => ({
-        accessToken: "access-token",
-      }),
-      register: vi.fn(),
-      refresh: async () => ({
-        accessToken: "access-token-new",
-      }),
-      logout: async () => {},
+  it("deve delegar o login para o adapter e retornar os tokens", async () => {
+    const tokens = {
+      accessToken: "access-token-123",
+      refreshToken: "refresh-token-123",
     };
 
-    const request = vi.fn(
-      async <T>(_request: HttpRequest): Promise<T> => {
-        throw new Error("Não deveria ser chamado neste teste");
-      },
-    );
+    const login = vi.fn().mockResolvedValue(tokens);
 
-    const fakeHttpClient: HttpClient = {
-      request: request as unknown as HttpClient["request"],
-    };
-
-    const auth = new AuthClient(
-      {
-        apiUrl: "https://example.com",
-        platform: "web",
-      },
-      fakeAdapter,
-      fakeHttpClient,
-    );
-
-    await expect(auth.me()).rejects.toThrow("Não autenticado");
-
-    expect(request).not.toHaveBeenCalled();
-  });
-});
-
-describe("initialize", () => {
-  it("deve restaurar uma sessão existente", async () => {
     const adapter: AuthAdapter = {
-      login: vi.fn(),
       register: vi.fn(),
-      refresh: vi.fn().mockResolvedValue({
-        accessToken: "new-access-token",
-      }),
+      login,
+      refresh: vi.fn(),
       logout: vi.fn(),
+      me: vi.fn(),
     };
 
-    const httpClient: HttpClient = {
-      request: vi.fn().mockResolvedValue({
-        id: "1",
-        name: "Jean",
-        email: "jean@email.com",
-        emailVerified: true,
-        isActive: true,
-        createdAt: "2026-01-01",
-        updatedAt: "2026-01-01",
-      }),
-    };
+    const auth = new AuthClient(adapter);
 
-    const auth = new AuthClient(
-      {
-        apiUrl: "http://localhost:3001",
-        platform: "web",
-      },
-      adapter,
-      httpClient,
+    const result = await auth.login(
+      "jean@example.com",
+      "12345678",
     );
 
-    const session = await auth.initialize();
+    expect(login).toHaveBeenCalledWith(
+      "jean@example.com",
+      "12345678",
+    );
 
-    expect(session.authenticated).toBe(true);
+    expect(result).toEqual(tokens);
+  });
 
-    expect(session.user).toEqual({
-      id: "1",
+  it("deve delegar o refresh para o adapter usando o refresh token informado", async () => {
+    const tokens = {
+      accessToken: "new-access-token",
+      refreshToken: "new-refresh-token",
+    };
+
+    const refresh = vi.fn().mockResolvedValue(tokens);
+
+    const adapter: AuthAdapter = {
+      register: vi.fn(),
+      login: vi.fn(),
+      refresh,
+      logout: vi.fn(),
+      me: vi.fn(),
+    };
+
+    const auth = new AuthClient(adapter);
+
+    const result = await auth.refresh("refresh-token-123");
+
+    expect(refresh).toHaveBeenCalledWith("refresh-token-123");
+    expect(result).toEqual(tokens);
+  });
+
+  it("deve delegar o logout para o adapter usando o refresh token informado", async () => {
+    const logout = vi.fn().mockResolvedValue(undefined);
+
+    const adapter: AuthAdapter = {
+      register: vi.fn(),
+      login: vi.fn(),
+      refresh: vi.fn(),
+      logout,
+      me: vi.fn(),
+    };
+
+    const auth = new AuthClient(adapter);
+
+    await auth.logout("refresh-token-123");
+
+    expect(logout).toHaveBeenCalledWith("refresh-token-123");
+  });
+
+  it("deve delegar o me para o adapter usando o access token informado", async () => {
+    const user = {
+      id: "user-123",
       name: "Jean",
-      email: "jean@email.com",
-      emailVerified: true,
+      email: "jean@example.com",
+      emailVerified: false,
       isActive: true,
-      createdAt: "2026-01-01",
-      updatedAt: "2026-01-01",
-    });
+      createdAt: "2026-08-20T00:00:00.000Z",
+      updatedAt: "2026-08-20T00:00:00.000Z",
+    };
 
-    expect(auth.getAccessToken()).toBe("new-access-token");
-  });
+    const me = vi.fn().mockResolvedValue(user);
 
-  it("deve retornar não autenticado quando o refresh falhar", async () => {
     const adapter: AuthAdapter = {
-      login: vi.fn(),
       register: vi.fn(),
-      refresh: vi.fn().mockRejectedValue(
-        new Error("Sessão expirada"),
-      ),
-      logout: vi.fn(),
-    };
-
-    const httpClient: HttpClient = {
-      request: vi.fn(),
-    };
-
-    const auth = new AuthClient(
-      {
-        apiUrl: "http://localhost:3001",
-        platform: "web",
-      },
-      adapter,
-      httpClient,
-    );
-
-    const session = await auth.initialize();
-
-    expect(session.authenticated).toBe(false);
-    expect(session.user).toBeNull();
-    expect(auth.getAccessToken()).toBeNull();
-
-    expect(httpClient.request).not.toHaveBeenCalled();
-  });
-
-  it("deve retornar não autenticado quando o me falhar", async () => {
-    const adapter: AuthAdapter = {
       login: vi.fn(),
-      register: vi.fn(),
-      refresh: vi.fn().mockResolvedValue({
-        accessToken: "new-access-token",
-      }),
+      refresh: vi.fn(),
       logout: vi.fn(),
+      me,
     };
 
-    const httpClient: HttpClient = {
-      request: vi.fn().mockRejectedValue(
-        new Error("Token inválido"),
-      ),
-    };
+    const auth = new AuthClient(adapter);
 
-    const auth = new AuthClient(
-      {
-        apiUrl: "http://localhost:3001",
-        platform: "web",
-      },
-      adapter,
-      httpClient,
-    );
+    const result = await auth.me("access-token-123");
 
-    const session = await auth.initialize();
-
-    expect(session.authenticated).toBe(false);
-    expect(session.user).toBeNull();
-    expect(auth.getAccessToken()).toBeNull();
+    expect(me).toHaveBeenCalledWith("access-token-123");
+    expect(result).toEqual(user);
   });
 });

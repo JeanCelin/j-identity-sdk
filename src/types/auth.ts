@@ -1,12 +1,12 @@
-export type AuthPlatform = "web" | "mobile";
-
 export type AuthClientConfig = {
   apiUrl: string;
-  platform: AuthPlatform;
+  clientId: string;
+  clientSecret: string;
 };
 
 export type AuthResult = {
   accessToken: string;
+  refreshToken: string;
 };
 
 export type RegisterData = {
