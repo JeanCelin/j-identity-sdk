@@ -6,6 +6,7 @@ import type { HttpClient } from "../http/http-client.js";
 
 describe("ServerAdapter", () => {
   const clientId = "client-id-123";
+
   const clientSecret = "client-secret-123";
 
   it("deve enviar clientId e clientSecret no register", async () => {
@@ -97,7 +98,7 @@ describe("ServerAdapter", () => {
     expect(result).toEqual(tokens);
   });
 
-  it("deve enviar o refresh token no refresh", async () => {
+  it("deve enviar o refresh token, clientId e clientSecret no refresh", async () => {
     const tokens = {
       accessToken: "new-access-token",
       refreshToken: "new-refresh-token",
@@ -122,13 +123,15 @@ describe("ServerAdapter", () => {
       path: "/auth/refresh",
       body: {
         refreshToken: "refresh-token-123",
+        clientId,
+        clientSecret,
       },
     });
 
     expect(result).toEqual(tokens);
   });
 
-  it("deve enviar o refresh token no logout", async () => {
+  it("deve enviar o refresh token, clientId e clientSecret no logout", async () => {
     const request = vi.fn().mockResolvedValue(undefined);
 
     const httpClient: HttpClient = {
@@ -148,6 +151,8 @@ describe("ServerAdapter", () => {
       path: "/auth/logout",
       body: {
         refreshToken: "refresh-token-123",
+        clientId,
+        clientSecret,
       },
     });
   });

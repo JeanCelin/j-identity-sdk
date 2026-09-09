@@ -1,10 +1,12 @@
-
 import type { HttpClient } from "../http/http-client.js";
+
 import type {
   AuthResult,
   RegisterData,
 } from "../types/auth.js";
+
 import type { User } from "../types/user.js";
+
 import type { AuthAdapter } from "./auth-adapter.js";
 
 export class ServerAdapter implements AuthAdapter {
@@ -54,27 +56,37 @@ export class ServerAdapter implements AuthAdapter {
     });
   }
 
-  async refresh(refreshToken: string): Promise<AuthResult> {
+  async refresh(
+    refreshToken: string,
+  ): Promise<AuthResult> {
     return this.httpClient.request<AuthResult>({
       method: "POST",
       path: "/auth/refresh",
       body: {
         refreshToken,
+        clientId: this.clientId,
+        clientSecret: this.clientSecret,
       },
     });
   }
 
-  async logout(refreshToken: string): Promise<void> {
+  async logout(
+    refreshToken: string,
+  ): Promise<void> {
     await this.httpClient.request<void>({
       method: "POST",
       path: "/auth/logout",
       body: {
         refreshToken,
+        clientId: this.clientId,
+        clientSecret: this.clientSecret,
       },
     });
   }
 
-  async me(accessToken: string): Promise<User> {
+  async me(
+    accessToken: string,
+  ): Promise<User> {
     return this.httpClient.request<User>({
       method: "GET",
       path: "/auth/me",
@@ -84,4 +96,3 @@ export class ServerAdapter implements AuthAdapter {
     });
   }
 }
-

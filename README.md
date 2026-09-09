@@ -8,9 +8,9 @@ O objetivo deste pacote é encapsular as chamadas HTTP e expor uma API pequena e
 
 ✅ Base funcional inicial implementada.
 
-Atualmente, o SDK expõe uma interface de cliente de autenticação baseada em um adapter de servidor e utiliza `fetch` para comunicar com a API do J-Identity.
+Atualmente, o SDK expõe uma interface de cliente de autenticação baseada em um adapter de servidor e utiliza `fetch` para comunicar com a API do J-Identity. O cliente implementa registro, login, renovação de tokens, logout e consulta do usuário autenticado.
 
-Os tokens são passados explicitamente para os métodos que os utilizam.
+Os tokens são passados explicitamente para os métodos que os utilizam. O SDK não armazena tokens nem mantém sessões automaticamente.
 
 ## Objetivo
 
@@ -82,7 +82,7 @@ clientId: "client-id-123";
 
 ### `clientSecret`
 
-Segredo do cliente, usado em operações de registro e login.
+Segredo da aplicação consumidora, enviado no corpo das operações de registro, login, refresh e logout. Como é um segredo, a configuração deve permanecer no ambiente server-side da aplicação consumidora.
 
 ```ts
 clientSecret: "client-secret-123";
@@ -128,6 +128,8 @@ Retorno esperado:
 }
 ```
 
+O endpoint retorna um objeto no formato `{ user: User }`, e o SDK entrega somente o conteúdo de `user` ao consumidor.
+
 ### `login(email, password)`
 
 Autentica um usuário e retorna os tokens.
@@ -148,6 +150,8 @@ Tipo de retorno:
 }
 ```
 
+O retorno atual contém somente `accessToken` e `refreshToken`. O SDK não expõe `clientApplicationId`, `familyId` ou outros metadados de sessão.
+
 ### `refresh(refreshToken)`
 
 Renova a sessão usando um refresh token enviado pelo consumidor.
@@ -160,7 +164,7 @@ console.log(result.accessToken);
 
 ### `logout(refreshToken)`
 
-Revoga a sessão na API usando o refresh token informado.
+Solicita à API a revogação da sessão associada ao refresh token informado. O `clientId` e o `clientSecret` da configuração também são enviados.
 
 ```ts
 await auth.logout("refresh-token-123");
@@ -175,6 +179,20 @@ const user = await auth.me("access-token-123");
 
 console.log(user);
 ```
+
+## Endpoints utilizados
+
+O `ServerAdapter` utiliza os seguintes endpoints. Nos endpoints `register`, `login`, `refresh` e `logout`, `clientId` e `clientSecret` são enviados no corpo da requisição.
+
+| Método | Endpoint         | Corpo ou autenticação                                   |
+| ------ | ---------------- | ------------------------------------------------------- |
+| `POST` | `/auth/register` | `name`, `email`, `password`, `clientId`, `clientSecret` |
+| `POST` | `/auth/login`    | `email`, `password`, `clientId`, `clientSecret`         |
+| `POST` | `/auth/refresh`  | `refreshToken`, `clientId`, `clientSecret`              |
+| `POST` | `/auth/logout`   | `refreshToken`, `clientId`, `clientSecret`              |
+| `GET`  | `/auth/me`       | Header `Authorization: Bearer <accessToken>`            |
+
+O SDK serializa os corpos como JSON e normaliza uma barra final de `apiUrl` antes de concatenar o endpoint. Respostas HTTP fora da faixa de sucesso geram `HttpError` com o status HTTP.
 
 ## Fluxo básico
 
@@ -260,10 +278,19 @@ error.status;
 
 ## Observações importantes
 
-- o cliente não mantém o access token em memória;
-- o refresh token não é gerenciado automaticamente por este SDK;
-- o desenvolvedor passa os tokens explicitamente para as operações que necessitam deles;
-- a autenticação é feita usando um cliente identificado por `clientId` e `clientSecret`.
+- o cliente não mantém o access token nem o refresh token em memória;
+- o refresh token deve ser fornecido explicitamente para `refresh` e `logout`, e o access token para `me`;
+- a autenticação das aplicações consumidoras é feita com `clientId` e `clientSecret` nos endpoints de registro, login, refresh e logout;
+- `me` autentica a requisição somente com o access token no header `Authorization`;
+- o SDK não implementa armazenamento de tokens, renovação automática, controle de sessões ou logout automático.
+
+### Sessões e refresh token rotation
+
+O contrato público atual do SDK trabalha apenas com `accessToken` e `refreshToken`. Não há parâmetros nem retornos para `clientApplicationId` ou `familyId`, e não há lógica no SDK para rotação de refresh tokens, detecção de reutilização, revogação de família ou revogação direta de sessão por identificador.
+
+O método `logout(refreshToken)` apenas envia o refresh token ao endpoint `/auth/logout`; qualquer política adicional aplicada pelo serviço de autenticação não é implementada nem controlada pelo SDK.
+
+Esses comportamentos podem ser documentados com mais detalhes quando houver suporte correspondente no contrato da API e na implementação do SDK.
 
 ## Desenvolvimento
 
@@ -301,7 +328,6 @@ Algumas próximas etapas planejadas incluem:
 - [x] Tratamento básico de erros HTTP
 - [x] Testes unitários iniciais
 - [ ] Publicação no npm
-
 
 ## Licença
 
