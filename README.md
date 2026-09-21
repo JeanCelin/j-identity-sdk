@@ -384,5 +384,5 @@ npm run build
 
 ## Licença
 
-A licença do projeto será definida posteriormente.
+Este projeto está licenciado sob a [MIT License](LICENSE).
 

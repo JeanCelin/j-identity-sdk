@@ -24,7 +24,7 @@
     "sdk"
   ],
   "author": "Jean Celin",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/JeanCelin/j-identity-sdk/issues"
   },
