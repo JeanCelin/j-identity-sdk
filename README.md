@@ -2,49 +2,35 @@
 
 SDK JavaScript/TypeScript para integração com o serviço de autenticação **J-Identity**.
 
-O objetivo deste pacote é encapsular as chamadas HTTP e expor uma API pequena e consistente para registrar usuários, autenticar, renovar tokens e consultar o perfil do usuário autenticado.
+O pacote encapsula as chamadas HTTP da API e fornece uma interface simples para registro de usuários, login, renovação de tokens, logout e consulta do usuário autenticado.
+
+O SDK foi desenvolvido para aplicações **server-side**, pois a configuração utiliza o `clientSecret` da aplicação consumidora.
 
 ## Status
 
-✅ Base funcional inicial implementada.
+Versão inicial funcional.
 
-Atualmente, o SDK expõe uma interface de cliente de autenticação baseada em um adapter de servidor e utiliza `fetch` para comunicar com a API do J-Identity. O cliente implementa registro, login, renovação de tokens, logout e consulta do usuário autenticado.
+O SDK possui:
 
-Os tokens são passados explicitamente para os métodos que os utilizam. O SDK não armazena tokens nem mantém sessões automaticamente.
+* registro de usuários;
+* login;
+* refresh token;
+* logout;
+* consulta do usuário autenticado;
+* cliente HTTP baseado em `fetch`;
+* tratamento de erros HTTP;
+* testes unitários;
+* integração validada com a API J-Identity.
 
-## Objetivo
-
-Em vez de a aplicação montar requisições HTTP diretamente, ela pode usar o cliente do SDK:
-
-```ts
-const auth = createAuthClient({
-  apiUrl: "https://auth.example.com",
-  clientId: "client-id",
-  clientSecret: "client-secret",
-});
-
-const result = await auth.login("jean@example.com", "senha-segura");
-```
-
-Isso centraliza a lógica de autenticação e reduz a necessidade de conhecer detalhes do endpoint da API.
-
-## Tecnologias
-
-- TypeScript
-- JavaScript
-- Fetch API
-- Vitest
-- Node.js
+O SDK não armazena tokens nem gerencia sessões automaticamente. Os tokens são fornecidos explicitamente pelos métodos que precisam deles.
 
 ## Instalação
-
-Instale o pacote:
 
 ```bash
 npm install j-identity-sdk
 ```
 
-Então importe o cliente:
+Importe o cliente:
 
 ```ts
 import { createAuthClient } from "j-identity-sdk";
@@ -52,7 +38,7 @@ import { createAuthClient } from "j-identity-sdk";
 
 ## Configuração
 
-A criação do cliente acontece pela função `createAuthClient`:
+O cliente é criado através da função `createAuthClient`:
 
 ```ts
 import { createAuthClient } from "j-identity-sdk";
@@ -66,31 +52,33 @@ const auth = createAuthClient({
 
 ### `apiUrl`
 
-Define a base URL da API do J-Identity:
+URL base da API do J-Identity.
 
 ```ts
-apiUrl: "https://auth.example.com";
+apiUrl: "https://auth.example.com"
 ```
 
 ### `clientId`
 
-Identificador público do cliente registrado na API.
+Identificador da aplicação cliente registrada na API.
 
 ```ts
-clientId: "client-id-123";
+clientId: "client-id-123"
 ```
 
 ### `clientSecret`
 
-Segredo da aplicação consumidora, enviado no corpo das operações de registro, login, refresh e logout. Como é um segredo, a configuração deve permanecer no ambiente server-side da aplicação consumidora.
+Segredo da aplicação cliente.
 
 ```ts
-clientSecret: "client-secret-123";
+clientSecret: "client-secret-123"
 ```
+
+O `clientSecret` deve permanecer exclusivamente no ambiente server-side da aplicação. Ele não deve ser exposto ao navegador, código frontend ou aplicações públicas.
 
 ## API pública
 
-O cliente expõe estes métodos:
+O cliente expõe os seguintes métodos:
 
 ```ts
 const auth = createAuthClient({
@@ -102,25 +90,26 @@ const auth = createAuthClient({
 
 ### `register(data)`
 
-Cria um novo usuário na API.
+Registra um novo usuário na API.
 
 ```ts
 const user = await auth.register({
-  name: "Jean",
-  email: "jean@example.com",
+  name: "nome",
+  email: "email@example.com",
   password: "senha-segura",
 });
 
 console.log(user);
 ```
 
-Retorno esperado:
+O usuário retornado possui as seguintes informações:
 
 ```ts
 {
   id: "user-123",
-  name: "Jean",
-  email: "jean@example.com",
+  name: "nome",
+  email: "email@example.com",
+  role: "USER",
   emailVerified: false,
   isActive: true,
   createdAt: "2026-08-20T00:00:00.000Z",
@@ -128,20 +117,21 @@ Retorno esperado:
 }
 ```
 
-O endpoint retorna um objeto no formato `{ user: User }`, e o SDK entrega somente o conteúdo de `user` ao consumidor.
+O SDK retorna diretamente os dados do usuário..
 
 ### `login(email, password)`
 
-Autentica um usuário e retorna os tokens.
+Autentica um usuário e retorna os tokens da sessão.
 
 ```ts
-const result = await auth.login("jean@example.com", "senha-segura");
+const result = await auth.login(
+  "email@example.com",
+  "senha-segura",
+);
 
-console.log(result.accessToken);
-console.log(result.refreshToken);
 ```
 
-Tipo de retorno:
+Retorno:
 
 ```ts
 {
@@ -150,29 +140,34 @@ Tipo de retorno:
 }
 ```
 
-O retorno atual contém somente `accessToken` e `refreshToken`. O SDK não expõe `clientApplicationId`, `familyId` ou outros metadados de sessão.
+O SDK não armazena esses tokens automaticamente.
 
 ### `refresh(refreshToken)`
 
-Renova a sessão usando um refresh token enviado pelo consumidor.
+Renova os tokens utilizando um refresh token.
 
 ```ts
 const result = await auth.refresh("refresh-token-123");
 
-console.log(result.accessToken);
 ```
+
+A API realiza a rotação do refresh token. Portanto, quando um refresh é realizado com sucesso, o consumidor deve passar a utilizar o novo `refreshToken` retornado.
+
+O SDK apenas transporta os tokens e não gerencia esse ciclo automaticamente.
 
 ### `logout(refreshToken)`
 
-Solicita à API a revogação da sessão associada ao refresh token informado. O `clientId` e o `clientSecret` da configuração também são enviados.
+Solicita à API a revogação da sessão associada ao refresh token informado.
 
 ```ts
 await auth.logout("refresh-token-123");
 ```
 
+O `clientId` e o `clientSecret` configurados no cliente são enviados automaticamente pelo SDK.
+
 ### `me(accessToken)`
 
-Retorna os dados do usuário autenticado com base no access token informado.
+Obtém os dados do usuário autenticado utilizando um access token.
 
 ```ts
 const user = await auth.me("access-token-123");
@@ -180,21 +175,42 @@ const user = await auth.me("access-token-123");
 console.log(user);
 ```
 
+retorno exemplo:
+
+```bash
+
+{
+  id: "user-123",
+  name: "nome",
+  email: "email@example.com",
+  role: "USER",
+  emailVerified: false,
+  isActive: true,
+  createdAt: "2026-08-20T00:00:00.000Z",
+  updatedAt: "2026-08-20T00:00:00.000Z",
+}
+
+```
+
 ## Endpoints utilizados
 
-O `ServerAdapter` utiliza os seguintes endpoints. Nos endpoints `register`, `login`, `refresh` e `logout`, `clientId` e `clientSecret` são enviados no corpo da requisição.
+O `ServerAdapter` utiliza os seguintes endpoints:
 
-| Método | Endpoint         | Corpo ou autenticação                                   |
+| Método | Endpoint         | Autenticação / corpo                                    |
 | ------ | ---------------- | ------------------------------------------------------- |
 | `POST` | `/auth/register` | `name`, `email`, `password`, `clientId`, `clientSecret` |
 | `POST` | `/auth/login`    | `email`, `password`, `clientId`, `clientSecret`         |
 | `POST` | `/auth/refresh`  | `refreshToken`, `clientId`, `clientSecret`              |
 | `POST` | `/auth/logout`   | `refreshToken`, `clientId`, `clientSecret`              |
-| `GET`  | `/auth/me`       | Header `Authorization: Bearer <accessToken>`            |
+| `GET`  | `/auth/me`       | `Authorization: Bearer <accessToken>`                   |
 
-O SDK serializa os corpos como JSON e normaliza uma barra final de `apiUrl` antes de concatenar o endpoint. Respostas HTTP fora da faixa de sucesso geram `HttpError` com o status HTTP.
+O SDK serializa os corpos das requisições como JSON e normaliza uma barra final da `apiUrl` antes de concatenar os endpoints.
+
+Respostas HTTP fora da faixa de sucesso geram um `HttpError` contendo o status HTTP.
 
 ## Fluxo básico
+
+Um fluxo simples de utilização pode ser:
 
 ```ts
 import { createAuthClient } from "j-identity-sdk";
@@ -206,27 +222,54 @@ const auth = createAuthClient({
 });
 
 async function authenticate() {
-  const registerResult = await auth.register({
-    name: "Jean",
-    email: "jean@example.com",
+  const user = await auth.register({
+    name: "nome",
+    email: "email@example.com",
     password: "senha-segura",
   });
 
-  console.log("Usuário criado:", registerResult);
+  console.log("Usuário criado:", user);
 
-  const loginResult = await auth.login("jean@example.com", "senha-segura");
+  const loginResult = await auth.login(
+    "email@example.com",
+    "senha-segura",
+  );
 
-  const user = await auth.me(loginResult.accessToken);
+  console.log("Access Token:", loginResult.accessToken);
+  console.log("Refresh Token:", loginResult.refreshToken);
 
-  console.log("Usuário autenticado:", user);
+  const authenticatedUser = await auth.me(
+    loginResult.accessToken,
+  );
+
+  console.log("Usuário autenticado:", authenticatedUser);
 }
 
 authenticate();
 ```
 
+## Tokens e sessões
+
+O SDK não mantém estado de autenticação automaticamente.
+
+O consumidor é responsável por armazenar os tokens de acordo com o ambiente da aplicação e fornecê-los aos métodos correspondentes:
+
+* `accessToken` → utilizado por `me()`;
+* `refreshToken` → utilizado por `refresh()` e `logout()`.
+
+A API J-Identity é responsável pelo gerenciamento da sessão, incluindo:
+
+* expiração de refresh tokens;
+* rotação de refresh tokens;
+* detecção de reutilização;
+* revogação de sessões;
+* revogação da família de tokens.
+
+Essas regras pertencem ao serviço de autenticação e não são implementadas como gerenciamento automático de sessão dentro do SDK.
+
 ## Arquitetura
 
-A estrutura atual do SDK é baseada em adapters e abstrações de transporte HTTP:
+A estrutura do SDK é baseada em adapters e abstrações de transporte HTTP:
 
 ```text
 Application
@@ -245,24 +288,41 @@ Application
            └── FetchHttpClient
                  │
                  ▼
-             J-Identity API
+            J-Identity API
 ```
 
 ### Componentes
 
-- `AuthClient`: expõe a API pública utilizada pela aplicação.
-- `AuthAdapter`: define o contrato das operações de autenticação.
-- `ServerAdapter`: implementa as chamadas HTTP para a API do J-Identity.
-- `HttpClient`: abstrai a comunicação HTTP.
-- `FetchHttpClient`: implementação concreta usando `fetch`.
+`AuthClient`
+
+Interface pública utilizada pela aplicação consumidora.
+
+`AuthAdapter`
+
+Define o contrato das operações de autenticação.
+
+`ServerAdapter`
+
+Implementa as operações de autenticação utilizando a API J-Identity.
+
+`HttpClient`
+
+Abstrai a comunicação HTTP.
+
+`FetchHttpClient`
+
+Implementação do `HttpClient` utilizando a Fetch API.
 
 ## Tratamento de erros
 
-Erros HTTP são representados por `HttpError`.
+Erros HTTP são representados pela classe `HttpError`.
 
 ```ts
 try {
-  await auth.login("jean@example.com", "senha-segura");
+  await auth.login(
+    "email@example.com",
+    "senha-segura",
+  );
 } catch (error) {
   if (error instanceof Error && "status" in error) {
     console.log((error as { status: number }).status);
@@ -270,27 +330,33 @@ try {
 }
 ```
 
-A classe expõe o status HTTP do erro:
+O `HttpError` expõe o status HTTP através da propriedade:
 
 ```ts
 error.status;
 ```
 
-## Observações importantes
+Por exemplo:
 
-- o cliente não mantém o access token nem o refresh token em memória;
-- o refresh token deve ser fornecido explicitamente para `refresh` e `logout`, e o access token para `me`;
-- a autenticação das aplicações consumidoras é feita com `clientId` e `clientSecret` nos endpoints de registro, login, refresh e logout;
-- `me` autentica a requisição somente com o access token no header `Authorization`;
-- o SDK não implementa armazenamento de tokens, renovação automática, controle de sessões ou logout automático.
+```text
+401
+```
 
-### Sessões e refresh token rotation
+para uma requisição não autorizada ou:
 
-O contrato público atual do SDK trabalha apenas com `accessToken` e `refreshToken`. Não há parâmetros nem retornos para `clientApplicationId` ou `familyId`, e não há lógica no SDK para rotação de refresh tokens, detecção de reutilização, revogação de família ou revogação direta de sessão por identificador.
+```text
+409
+```
 
-O método `logout(refreshToken)` apenas envia o refresh token ao endpoint `/auth/logout`; qualquer política adicional aplicada pelo serviço de autenticação não é implementada nem controlada pelo SDK.
+para um conflito, como uma tentativa de registrar um email já existente.
 
-Esses comportamentos podem ser documentados com mais detalhes quando houver suporte correspondente no contrato da API e na implementação do SDK.
+## Segurança
+
+O `clientSecret` é uma credencial da aplicação cliente e deve ser mantido em ambiente server-side.
+
+Não utilize o SDK diretamente em código frontend que será enviado ao navegador quando isso implicar expor o `clientSecret`.
+
+Uma aplicação frontend pode se comunicar com seu próprio backend, enquanto o backend utiliza o J-Identity SDK para realizar as operações autenticadas.
 
 ## Desenvolvimento
 
@@ -298,11 +364,13 @@ Clone o projeto e instale as dependências:
 
 ```bash
 git clone <repository-url>
+
 cd j-identity-sdk
+
 npm install
 ```
 
-Executar testes:
+Executar os testes:
 
 ```bash
 npm test
@@ -314,23 +382,7 @@ Compilar o projeto:
 npm run build
 ```
 
-## Roadmap
-
-Algumas próximas etapas planejadas incluem:
-
-- [x] `AuthClient`
-- [x] Registro
-- [x] Login
-- [x] Refresh token
-- [x] Logout
-- [x] `HttpClient`
-- [x] `FetchHttpClient`
-- [x] Tratamento básico de erros HTTP
-- [x] Testes unitários iniciais
-- [ ] Publicação no npm
-
 ## Licença
 
-Projeto em desenvolvimento.
+A licença do projeto será definida posteriormente.
 
-A licença será definida posteriormente.

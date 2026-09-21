@@ -1,9 +1,6 @@
 import type { HttpClient } from "../http/http-client.js";
 
-import type {
-  AuthResult,
-  RegisterData,
-} from "../types/auth.js";
+import type { AuthResult, RegisterData } from "../types/auth.js";
 
 import type { User } from "../types/user.js";
 
@@ -16,11 +13,7 @@ export class ServerAdapter implements AuthAdapter {
 
   private readonly clientSecret: string;
 
-  constructor(
-    httpClient: HttpClient,
-    clientId: string,
-    clientSecret: string,
-  ) {
+  constructor(httpClient: HttpClient, clientId: string, clientSecret: string) {
     this.httpClient = httpClient;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
@@ -40,10 +33,7 @@ export class ServerAdapter implements AuthAdapter {
     return result.user;
   }
 
-  async login(
-    email: string,
-    password: string,
-  ): Promise<AuthResult> {
+  async login(email: string, password: string): Promise<AuthResult> {
     return this.httpClient.request<AuthResult>({
       method: "POST",
       path: "/auth/login",
@@ -56,9 +46,7 @@ export class ServerAdapter implements AuthAdapter {
     });
   }
 
-  async refresh(
-    refreshToken: string,
-  ): Promise<AuthResult> {
+  async refresh(refreshToken: string): Promise<AuthResult> {
     return this.httpClient.request<AuthResult>({
       method: "POST",
       path: "/auth/refresh",
@@ -70,9 +58,7 @@ export class ServerAdapter implements AuthAdapter {
     });
   }
 
-  async logout(
-    refreshToken: string,
-  ): Promise<void> {
+  async logout(refreshToken: string): Promise<void> {
     await this.httpClient.request<void>({
       method: "POST",
       path: "/auth/logout",
@@ -84,15 +70,15 @@ export class ServerAdapter implements AuthAdapter {
     });
   }
 
-  async me(
-    accessToken: string,
-  ): Promise<User> {
-    return this.httpClient.request<User>({
+  async me(accessToken: string): Promise<User> {
+    const result = await this.httpClient.request<{ data: User }>({
       method: "GET",
       path: "/auth/me",
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
     });
+
+    return result.data;
   }
 }
