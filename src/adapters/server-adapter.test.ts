@@ -26,11 +26,7 @@ describe("ServerAdapter", () => {
       request: request as HttpClient["request"],
     };
 
-    const adapter = new ServerAdapter(
-      httpClient,
-      clientId,
-      clientSecret,
-    );
+    const adapter = new ServerAdapter(httpClient, clientId, clientSecret);
 
     const result = await adapter.register({
       name: "Jean",
@@ -73,16 +69,9 @@ describe("ServerAdapter", () => {
       request: request as HttpClient["request"],
     };
 
-    const adapter = new ServerAdapter(
-      httpClient,
-      clientId,
-      clientSecret,
-    );
+    const adapter = new ServerAdapter(httpClient, clientId, clientSecret);
 
-    const result = await adapter.login(
-      "jean@example.com",
-      "12345678",
-    );
+    const result = await adapter.login("jean@example.com", "12345678");
 
     expect(request).toHaveBeenCalledWith({
       method: "POST",
@@ -110,11 +99,7 @@ describe("ServerAdapter", () => {
       request: request as HttpClient["request"],
     };
 
-    const adapter = new ServerAdapter(
-      httpClient,
-      clientId,
-      clientSecret,
-    );
+    const adapter = new ServerAdapter(httpClient, clientId, clientSecret);
 
     const result = await adapter.refresh("refresh-token-123");
 
@@ -138,11 +123,7 @@ describe("ServerAdapter", () => {
       request: request as HttpClient["request"],
     };
 
-    const adapter = new ServerAdapter(
-      httpClient,
-      clientId,
-      clientSecret,
-    );
+    const adapter = new ServerAdapter(httpClient, clientId, clientSecret);
 
     await adapter.logout("refresh-token-123");
 
@@ -164,21 +145,20 @@ describe("ServerAdapter", () => {
       email: "jean@example.com",
       emailVerified: false,
       isActive: true,
+      role: "ADMIN" as "USER" | "ADMIN",
       createdAt: "2026-08-20T00:00:00.000Z",
       updatedAt: "2026-08-20T00:00:00.000Z",
     };
 
-    const request = vi.fn().mockResolvedValue(user);
+    const request = vi.fn().mockResolvedValue({
+      data: user,
+    });
 
     const httpClient: HttpClient = {
       request: request as HttpClient["request"],
     };
 
-    const adapter = new ServerAdapter(
-      httpClient,
-      clientId,
-      clientSecret,
-    );
+    const adapter = new ServerAdapter(httpClient, clientId, clientSecret);
 
     const result = await adapter.me("access-token-123");
 
